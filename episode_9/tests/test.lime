@@ -1,7 +1,0 @@
-fn test() -> int {
-    return 69;
-}
-
-fn main() -> int {
-    return test();
-}

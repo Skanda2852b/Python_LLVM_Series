@@ -464,21 +464,30 @@ class Compiler:
 
         args = []
         types = []
-        if len(params) > 0:
-            for x in params:
-                p_val, p_type = self.__resolve_value(x)
-                args.append(p_val)
-                types.append(p_type)
+        for x in params:
+            resolved = self.__resolve_value(x)
+            if resolved is None:
+                self.errors.append(f"COMPILE ERROR: Cannot resolve value for argument in call to '{name}'")
+                return None, None
+            p_val, p_type = resolved
+            args.append(p_val)
+            types.append(p_type)
+
 
         match name:
             case 'printf':
                 ret = self.builtin_printf(params=args, return_type=types[0])
                 ret_type = self.type_map['int']
             case _:
-                func, ret_type = self.env.lookup(name)
+                lookup_result = self.env.lookup(name)
+                if lookup_result is None:
+                    self.errors.append(f"COMPILE ERROR: Function '{name}' not defined.")
+                    return None, None  # Avoid unpacking None
+                func, ret_type = lookup_result
                 ret = self.builder.call(func, args)
-        
+
         return ret, ret_type
+
     
     def __visit_prefix_expression(self, node: PrefixExpression) -> tuple[ir.Value, ir.Type]:
         operator: str = node.operator
@@ -537,6 +546,8 @@ class Compiler:
     # region Helper Methods
     def __resolve_value(self, node: Expression) -> tuple[ir.Value, ir.Type]:
         """ Resolves a value and returns a tuple (ir_value, ir_type) """
+        if node is None:
+            raise Exception("COMPILE ERROR: Attempted to resolve None node")
         match node.type():
             # Literals
             case NodeType.IntegerLiteral:
